@@ -256,8 +256,26 @@ function TradeModal({initial,onClose,onSave,onDelete,accType,symbols,strategies}
   const [tp1,setTp1]=useState(i.tp1??""); const [tp2,setTp2]=useState(i.tp2??""); const [sl,setSl]=useState(i.sl??"");
   const [strategy,setStrategy]=useState(i.strategy||(strategies[0]?.name||"")); const [exitType,setExitType]=useState(i.exitType||"TP");
   const [pnlOverride,setPnlOverride]=useState(i.pnlOverride ?? "");
-  const num=v=>(v===""||v===undefined||v===null)?undefined:parseFloat(v);
-  const draft=useMemo(()=>({id:i.id,date,symbol,side,lotSize:parseFloat(lotSize||0),entry:num(entry),exit:num(exit),tp1:num(tp1),tp2:num(tp2),sl:num(sl),strategy,exitType,pnlOverride:(pnlOverride===""?undefined:parseFloat(pnlOverride))}),[i.id,date,symbol,side,lotSize,entry,exit,tp1,tp2,sl,strategy,exitType,pnlOverride]);
+  const num=v=>{
+    if (v === "" || v === undefined || v === null) return null;
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  };
+  const draft=useMemo(()=>({
+    id:i.id,
+    date,
+    symbol,
+    side,
+    lotSize: num(lotSize) ?? 0.01,
+    entry:num(entry),
+    exit:num(exit),
+    tp1:num(tp1),
+    tp2:num(tp2),
+    sl:num(sl),
+    strategy,
+    exitType,
+    pnlOverride: num(pnlOverride)
+  }),[i.id,date,symbol,side,lotSize,entry,exit,tp1,tp2,sl,strategy,exitType,pnlOverride]);
   const preview=useMemo(()=>{const v=computeDollarPnL(draft,accType);if(v===null||!isFinite(v))return"-";return`${formatPnlDisplay(accType,v)} (${formatUnits(accType,v)})`},[draft,accType]);
   return(
     <Modal title={i.id?"Edit Trade":"Add Trade"} onClose={onClose} maxClass="max-w-4xl">
@@ -870,15 +888,16 @@ function App(){
   const addOrUpdate=(draft)=>{const id=draft.id||Math.random().toString(36).slice(2); const arr=state.trades.slice(); const idx=arr.findIndex(t=>t.id===id); const rec={...draft,id}; if(idx>=0)arr[idx]=rec; else arr.unshift(rec); setState({...state,trades:arr}); setShowTrade(false); setEditItem(null)};
   const delTrade=(id)=>setState({...state,trades:state.trades.filter(t=>t.id!==id)});
   const clearAllTrades=()=>setState({...state,trades:[]});
-  const openTrades=state?.trades.filter(t=> !t.exitType || t.exitType === "Trade In Progress").length;
-  const realized=state?.trades.filter(t=>new Date(t.date)>=new Date(state.depositDate)&&t.exitType && t.exitType !== "Trade In Progress").map(t=>computeDollarPnL(t,state.accType)).filter(v=>v!==null&&isFinite(v)).reduce((a,b)=>a+b,0);
-  const effectiveCapital=state?.capital+realized;
 
   if(!currentEmail){return <><LoginView onLogin={login} onSignup={()=>{}} resetStart={resetStart}/>{showReset&&<ResetModal email="" onClose={()=>setShowReset(false)}/>}</>}
 
   if (!state || !cfg) {
     return <div className="flex items-center justify-center h-screen bg-slate-950 text-slate-100">Loading...</div>;
   }
+
+  const openTrades=state.trades.filter(t=> !t.exitType || t.exitType === "Trade In Progress").length;
+  const realized=state.trades.filter(t=>new Date(t.date)>=new Date(state.depositDate)&&t.exitType && t.exitType !== "Trade In Progress").map(t=>computeDollarPnL(t,state.accType)).filter(v=>v!==null&&isFinite(v)).reduce((a,b)=>a+b,0);
+  const effectiveCapital=state.capital+realized;
 
   const navBtn=(label,pageKey,Icon)=>(<button onClick={()=>setPage(pageKey)} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border ${page===pageKey?'bg-slate-700 border-slate-600':'border-slate-700 hover:bg-slate-800'}`}>{Icon?<Icon/>:null}<span>{label}</span></button>);
   const capitalPanel=(<div>
