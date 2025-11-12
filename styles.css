@@ -1,0 +1,23 @@
+html,body,#root{height:100%}
+
+/* Login left panel: deep blue, no image */
+.hero{
+  background:#0a1d4d; /* deep blue */
+}
+
+/* scrollers */
+.scroll-smooth::-webkit-scrollbar{height:8px;width:8px}
+.scroll-smooth::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+
+/* Gauge text anti-aliasing for Best Strategy */
+.svg-text { paint-order: stroke; stroke: rgba(2,6,23,.3); stroke-width: .6px }
+
+/* Subtle row lines in histories */
+.tr-row{border-top:1px solid rgba(51,65,85,.6)}
+
+/* Notes: uniform preview width/appearance */
+.note-card{width:100%}
+.note-preview{width:100%; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+.note-preview *{max-width:100%;}
+
+/* (kept all other styling intact) */
