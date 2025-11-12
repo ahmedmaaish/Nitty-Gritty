@@ -1,6 +1,6 @@
 html,body,#root{height:100%}
 
-/* Login left panel: deep blue, no image (unchanged) */
+/* Login left panel: deep blue, no image */
 .hero{
   background:#0a1d4d; /* deep blue */
 }
@@ -18,6 +18,6 @@ html,body,#root{height:100%}
 /* Notes: uniform preview width/appearance */
 .note-card{width:100%}
 .note-preview{width:100%; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
-.note-preview *{max-width:100%}
+.note-preview *{max-width:100%;}
 
 /* (kept all other styling intact) */
