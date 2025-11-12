@@ -735,7 +735,18 @@ function App(){
     const unsubscribe = docRef.onSnapshot(snap => {
       if (snap.exists) {
         const data = snap.data();
-        setState(data.state || fresh());
+        let loadedState = data.state || fresh();
+        loadedState.trades = loadedState.trades.map(t => ({
+          ...t,
+          entry: t.entry ?? null,
+          exit: t.exit ?? null,
+          tp1: t.tp1 ?? null,
+          tp2: t.tp2 ?? null,
+          sl: t.sl ?? null,
+          pnlOverride: t.pnlOverride ?? null,
+          lotSize: t.lotSize ?? 0.01
+        }));
+        setState(loadedState);
         setCfg(data.cfg || {symbols:DEFAULT_SYMBOLS, strategies:DEFAULT_STRATEGIES});
         setNotes(data.notes || []);
       } else {
@@ -826,11 +837,11 @@ function App(){
     return todayISO();
   }
   function toNumberMaybe(v){
-    if(v===undefined||v===null||v==="") return undefined;
+    if(v===undefined||v===null||v==="") return null;
     if(typeof v==="number") return v;
     const s=String(v).replace(/,/g,"").trim();
     const n=parseFloat(s);
-    return isNaN(n)?undefined:n;
+    return isNaN(n)?null:n;
   }
 
   function rowsToTrades(rows){
@@ -858,7 +869,7 @@ function App(){
       t.exitType = String( getFirst(norm, FIELD_ALIASES.exittype) || "Trade In Progress" );
 
       // Skip totally empty rows (no symbol, no numbers)
-      const hasAny = t.symbol || t.entry!==undefined || t.exit!==undefined || t.tp1!==undefined || t.tp2!==undefined || t.sl!==undefined;
+      const hasAny = t.symbol || t.entry!==null || t.exit!==null || t.tp1!==null || t.tp2!==null || t.sl!==null;
       if(hasAny) out.push(t);
     }
     return out;
@@ -895,9 +906,9 @@ function App(){
     return <div className="flex items-center justify-center h-screen bg-slate-950 text-slate-100">Loading...</div>;
   }
 
-  const openTrades=state.trades.filter(t=> !t.exitType || t.exitType === "Trade In Progress").length;
-  const realized=state.trades.filter(t=>new Date(t.date)>=new Date(state.depositDate)&&t.exitType && t.exitType !== "Trade In Progress").map(t=>computeDollarPnL(t,state.accType)).filter(v=>v!==null&&isFinite(v)).reduce((a,b)=>a+b,0);
-  const effectiveCapital=state.capital+realized;
+  const openTrades = state.trades?.filter(t => !t.exitType || t.exitType === "Trade In Progress")?.length ?? 0;
+  const realized = state.trades?.filter(t => new Date(t.date) >= new Date(state.depositDate) && t.exitType && t.exitType !== "Trade In Progress")?.map(t => computeDollarPnL(t, state.accType))?.filter(v => v !== null && isFinite(v))?.reduce((a, b) => a + b, 0) ?? 0;
+  const effectiveCapital = (state.capital ?? 0) + realized;
 
   const navBtn=(label,pageKey,Icon)=>(<button onClick={()=>setPage(pageKey)} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border ${page===pageKey?'bg-slate-700 border-slate-600':'border-slate-700 hover:bg-slate-800'}`}>{Icon?<Icon/>:null}<span>{label}</span></button>);
   const capitalPanel=(<div>
