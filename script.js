@@ -1,12 +1,32 @@
-/* Nitty Gritty – tiny patch build (rev.4)
-   - Import: robust header/row mapping so *all* rows/columns are captured
-             (trims, case-insensitive, space/underscore-insensitive, common synonyms,
-              Excel serial dates ➜ ISO yyyy-mm-dd, tolerant numeric parsing)
-   - Notes: uniform preview list (same width, nice wrapping & 3-line clamp)
-   - Login: hero background is deep blue (CSS), no image
-   - Kept exactly as-is: Reset History, Best Strategy, Settings icon, Forgot password
+/* Nitty Gritty – tiny patch build (rev.5)
+   - NEW: Single-owner login (hardcoded). Sign-up disabled (UI intact).
+   - NEW: Firestore sync (optional). Falls back to localStorage if Firebase not configured.
+   - Import: robust header/row mapping (unchanged)
+   - Notes: uniform preview list (unchanged)
+   - Login: hero background is deep blue (CSS), no image (unchanged)
+   - Kept exactly as-is: Reset History, Best Strategy, Settings icon, Forgot password, UI layout
 */
 const {useState,useMemo,useEffect,useRef} = React;
+
+/* ---------- OWNER LOGIN (hardcoded) ---------- */
+const ADMIN_USER = "Ammu8080";
+const ADMIN_PASS = "94773161243Ss$";
+/* This email is ONLY for Firebase Auth behind-the-scenes (not shown in UI).
+   Set the real value in index.html via window.NG_FIREBASE_EMAIL. */
+const ADMIN_FIREBASE_EMAIL = () => (window.NG_FIREBASE_EMAIL || "ahmedmaaish10@gmail.com");
+
+/* ---------- Firebase (optional; safe fallback if absent) ---------- */
+let FB = { app:null, db:null, auth:null, ok:false };
+(function initFirebase(){
+  const hasConfig = !!(window.firebase && window.NG_FIREBASE_CONFIG);
+  if(!hasConfig) return;
+  try{
+    FB.app  = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(window.NG_FIREBASE_CONFIG);
+    FB.db   = firebase.firestore ? firebase.firestore() : null;
+    FB.auth = firebase.auth ? firebase.auth() : null;
+    FB.ok   = !!(FB.db);
+  }catch(e){ console.warn("Firebase init failed:", e); FB = {app:null,db:null,auth:null,ok:false}; }
+})();
 
 /* ---------- Icons (unchanged) ---------- */
 const iconCls="h-5 w-5";
@@ -485,7 +505,7 @@ function Histories({trades,accType,onEdit,onDelete,strategies,onClearAll}){
   )
 }
 
-/* ---------- Notes (uniform preview width; everything else unchanged) ---------- */
+/* ---------- Notes (uniform preview width; unchanged) ---------- */
 function NotesPanel({trades}){
   const [items,setItems]=useState(()=>{try{return JSON.parse(localStorage.getItem("ng_notes")||"[]")}catch{return[]}});
   const [show,setShow]=useState(false);
@@ -618,7 +638,7 @@ function AppShell({children,capitalPanel,nav,logoSrc,onToggleSidebar,onExport,on
   </div>)
 }
 
-/* ---------- Login & Forgot Password (unchanged behavior) ---------- */
+/* ---------- Login & Forgot Password (UI same; Google disabled; signup blocked) ---------- */
 function parseJwt(token){try{return JSON.parse(atob(token.split('.')[1]))}catch{return null}}
 function ResetModal({email,onClose}){
   const [e,setE]=useState(email||""); const [link,setLink]=useState(""); const [msg,setMsg]=useState("");
@@ -665,11 +685,22 @@ function LoginView({onLogin,onSignup,initGoogle,resetStart}){
   const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [showPw,setShowPw]=useState(false);
   const [name,setName]=useState(""); const [confirm,setConfirm]=useState(""); const [err,setErr]=useState("");
   const googleDiv=useRef(null);
-  useEffect(()=>{initGoogle(googleDiv.current,(payloadEmail)=>{setErr(""); onLogin(payloadEmail,"__google__",()=>{})})},[]);
-  const submit=()=>{setErr(""); if(mode==="login"){if(!email||!password)return setErr("Fill all fields."); onLogin(email,password,setErr)}
-    else{if(!name||!email||!password||!confirm)return setErr("Fill all fields."); if(password!==confirm)return setErr("Passwords do not match."); onSignup(name,email,password,setErr)}};
+
+  /* Disable Google button rendering (UI space remains unchanged) */
+  useEffect(()=>{ if (typeof initGoogle === "function") initGoogle(null, ()=>{}); },[]);
+
+  const submit=()=>{
+    setErr("");
+    if(mode==="login"){
+      if(!email||!password) return setErr("Fill all fields.");
+      onLogin(email,password,setErr);
+    }else{
+      // Sign up kept visually, but disabled by request
+      setErr("Sign-up is currently unavailable. Please contact the administrator.");
+    }
+  };
   return(<div className="min-h-screen grid md:grid-cols-2">
-    {/* Left panel – now solid deep blue (no image); color via CSS class `.hero` */}
+    {/* Left panel – solid deep blue (CSS `.hero`) */}
     <div className="hidden md:flex hero items-center justify-center">
       <div className="max-w-sm text-center px-6">
         <div className="text-3xl font-semibold">Trade smart. Log smarter.</div>
@@ -686,7 +717,7 @@ function LoginView({onLogin,onSignup,initGoogle,resetStart}){
           <button onClick={()=>setMode("signup")} className={`flex-1 px-3 py-2 rounded-lg border ${mode==="signup"?"bg-slate-700 border-slate-600":"border-slate-700"}`}>Sign up</button>
         </div>
         {mode==="signup"&&(<div className="mb-3"><label className="text-sm text-slate-300">Name</label><input value={name} onChange={e=>setName(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2"/></div>)}
-        <div className="mb-3"><label className="text-sm text-slate-300">Email</label><input value={email} onChange={e=>setEmail(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2"/></div>
+        <div className="mb-3"><label className="text-sm text-slate-300">Email</label><input value={email} onChange={e=>setEmail(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2" placeholder="Use your username here"/></div>
         <div className="mb-2">
           <label className="text-sm text-slate-300">Password</label>
           <div className="mt-1 flex gap-2">
@@ -708,14 +739,14 @@ function LoginView({onLogin,onSignup,initGoogle,resetStart}){
 
 /* ---------- App ---------- */
 function usePersisted(email){
-  const fresh = () => ({name:"",email:email||"",accType:ACC_TYPES[1],capital:0,depositDate:todayISO(),trades:[]});
+  const fresh = () => ({name:"",email:email||"",accType:ACC_TYPES[1],capital:0,depositDate:todayISO(),trades:[],updatedAt:0});
   const [state,setState]=useState(()=>{const s=loadState(email||getCurrent());return s||fresh()});
   useEffect(()=>{const loaded = loadState(email); setState(loaded || fresh());}, [email]);
   useEffect(()=>{if(!state||!state.email)return; saveState(state.email,state)},[state]);
   return [state,setState];
 }
 
-/* -------- Robust import utilities -------- */
+/* -------- Robust import utilities (unchanged) -------- */
 function normalizeKey(k){
   return String(k||"").trim().toLowerCase().replace(/[^a-z0-9]/g,"");
 }
@@ -765,6 +796,20 @@ function toNumberMaybe(v){
   return isNaN(n)?undefined:n;
 }
 
+/* ---------- Firestore helpers (optional) ---------- */
+const cloudDocRef = (username)=> FB.ok && FB.db.collection("ng_users").doc(username);
+async function cloudEnsureAuth(){
+  if(!FB.ok || !FB.auth) return;
+  if(FB.auth.currentUser) return;
+  const email = ADMIN_FIREBASE_EMAIL();
+  try{
+    await FB.auth.signInWithEmailAndPassword(email, ADMIN_PASS);
+  }catch(err){
+    console.warn("Firebase auth sign-in failed:", err?.message||err);
+  }
+}
+
+/* ---------- Main App ---------- */
 function App(){
   const [currentEmail,setCurrentEmail]=useState(getCurrent());
   const [users,setUsers]=useState(loadUsers());
@@ -798,12 +843,10 @@ function App(){
   function rowsToTrades(rows){
     const out = [];
     for(const r of rows){
-      // Build one normalized dictionary per row
       const norm = {};
       for(const k of Object.keys(r||{})){
         norm[normalizeKey(k)] = r[k];
       }
-      // Map values using aliases
       const t = {};
       t.id = Math.random().toString(36).slice(2);
       t.date     = coerceISODate( getFirst(norm, FIELD_ALIASES.date) );
@@ -818,8 +861,6 @@ function App(){
       t.sl       = toNumberMaybe( getFirst(norm, FIELD_ALIASES.sl) );
       t.strategy = String( getFirst(norm, FIELD_ALIASES.strategy) || DEFAULT_STRATEGIES[0].name );
       t.exitType = String( getFirst(norm, FIELD_ALIASES.exittype) || "Trade In Progress" );
-
-      // Skip totally empty rows (no symbol, no numbers)
       const hasAny = t.symbol || t.entry!==undefined || t.exit!==undefined || t.tp1!==undefined || t.tp2!==undefined || t.sl!==undefined;
       if(hasAny) out.push(t);
     }
@@ -835,7 +876,7 @@ function App(){
         const ws  = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true, blankrows:false });
         const trades = rowsToTrades(rows);
-        setState(s => ({ ...s, trades: [...trades.reverse(), ...s.trades] })); // keep existing order as before
+        setState(s => ({ ...s, trades: [...trades.reverse(), ...s.trades], updatedAt: Date.now() }));
       }catch(err){
         console.error('Import error:', err);
         alert('Unable to import this file. Please check the format.');
@@ -845,30 +886,87 @@ function App(){
   }
 
   const onLogout=()=>{saveCurrent("");setCurrentEmail("")};
-  const initGoogle=(container,onEmail)=>{
-    const clientId=window.GOOGLE_CLIENT_ID;
-    if(!window.google||!clientId||!container) return;
-    window.google.accounts.id.initialize({client_id:clientId,callback:(resp)=>{const p=parseJwt(resp.credential); if(p&&p.email){onEmail(p.email)}}});
-    window.google.accounts.id.renderButton(container,{theme:"outline",size:"large",text:"signin_with",shape:"pill"});
+
+  /* Google button intentionally disabled; keep signature for compatibility */
+  const initGoogle=()=>{};
+
+  /* LOGIN: only owner credentials allowed */
+  const login=(email,password,setErr)=>{
+    const uname = String(email||"").trim();
+    const ok = uname.toLowerCase()===ADMIN_USER.toLowerCase() && password===ADMIN_PASS;
+    if(!ok){
+      if(password==="__google__") setErr("Access is restricted to the owner.");
+      else setErr("No such user or wrong password.");
+      return;
+    }
+    setErr("");
+    saveCurrent(ADMIN_USER);
+    setCurrentEmail(ADMIN_USER);
+    setCfg(loadCfg(ADMIN_USER)||{symbols:DEFAULT_SYMBOLS,strategies:DEFAULT_STRATEGIES});
   };
-  const login=(email,password,setErr)=>{const u=users.find(x=>x.email.toLowerCase()===email.toLowerCase());
-    if(!u){ if(password==="__google__"){const nu=[...users,{name:email.split("@")[0],email,password:""}]; setUsers(nu); saveUsers(nu); const fresh={name:email.split("@")[0],email,accType:ACC_TYPES[1],capital:0,depositDate:todayISO(),trades:[]}; saveState(email,fresh); saveCurrent(email); setCurrentEmail(email); setCfg({symbols:DEFAULT_SYMBOLS,strategies:DEFAULT_STRATEGIES}); return;}
-      setErr("No such user. Please sign up."); return;}
-    if(password!=="__google__" && u.password!==password){setErr("Wrong password.");return}
-    setErr(""); saveCurrent(u.email); setCurrentEmail(u.email); setCfg(loadCfg(u.email)||{symbols:DEFAULT_SYMBOLS,strategies:DEFAULT_STRATEGIES});
+
+  /* SIGNUP: visually present, functionally disabled */
+  const signup=(name,email,password,setErr)=>{
+    setErr("Sign-up is currently unavailable. Please contact the administrator.");
   };
-  const signup=(name,email,password,setErr)=>{if(users.some(x=>x.email.toLowerCase()===email.toLowerCase())){setErr("Email already registered.");return}
-    const u={name,email,password}; const nu=[...users,u]; setUsers(nu); saveUsers(nu);
-    const fresh={name,email,accType:ACC_TYPES[1],capital:0,depositDate:todayISO(),trades:[]}; saveState(email,fresh); saveCurrent(email); setCurrentEmail(email);
-    setCfg({symbols:DEFAULT_SYMBOLS,strategies:DEFAULT_STRATEGIES});
-  };
+
   const resetStart=()=>{setShowReset(true)};
-  const addOrUpdate=(draft)=>{const id=draft.id||Math.random().toString(36).slice(2); const arr=state.trades.slice(); const idx=arr.findIndex(t=>t.id===id); const rec={...draft,id}; if(idx>=0)arr[idx]=rec; else arr.unshift(rec); setState({...state,trades:arr}); setShowTrade(false); setEditItem(null)};
-  const delTrade=(id)=>setState({...state,trades:state.trades.filter(t=>t.id!==id)});
-  const clearAllTrades=()=>setState({...state,trades:[]});
+  const addOrUpdate=(draft)=>{const id=draft.id||Math.random().toString(36).slice(2); const arr=state.trades.slice(); const idx=arr.findIndex(t=>t.id===id); const rec={...draft,id}; if(idx>=0)arr[idx]=rec; else arr.unshift(rec); setState({...state,trades:arr,updatedAt:Date.now()}); setShowTrade(false); setEditItem(null)};
+  const delTrade=(id)=>setState({...state,trades:state.trades.filter(t=>t.id!==id),updatedAt:Date.now()});
+  const clearAllTrades=()=>setState({...state,trades:[],updatedAt:Date.now()});
   const openTrades=state.trades.filter(t=> !t.exitType || t.exitType === "Trade In Progress").length;
   const realized=state.trades.filter(t=>new Date(t.date)>=new Date(state.depositDate)&&t.exitType && t.exitType !== "Trade In Progress").map(t=>computeDollarPnL(t,state.accType)).filter(v=>v!==null&&isFinite(v)).reduce((a,b)=>a+b,0);
   const effectiveCapital=state.capital+realized;
+
+  /* ---------- Firestore sync (if configured) ---------- */
+  // Sign in to Firebase Auth after owner login
+  useEffect(()=>{ (async ()=>{
+    if(!FB.ok || !currentEmail) return;
+    await cloudEnsureAuth();
+  })(); },[currentEmail]);
+
+  // One-time load & real-time subscribe
+  useEffect(()=>{
+    if(!FB.ok || !currentEmail) return;
+    const ref = cloudDocRef(currentEmail);
+    if(!ref) return;
+
+    let first = true;
+    const unsub = ref.onSnapshot(snap=>{
+      const data = snap.exists ? snap.data() : null;
+      if(!data) return;
+      // Prefer the freshest
+      const remoteU = data.updatedAt||0;
+      const localU  = state?.updatedAt||0;
+      if(first){
+        first=false;
+        if(remoteU > localU){
+          // adopt cloud
+          saveState(currentEmail,data);
+          setState(data);
+        }else if(localU > remoteU){
+          // push local
+          ref.set(state,{merge:true}).catch(()=>{});
+        }
+      }else{
+        // Subsequent remote changes: apply only if newer than local
+        if(remoteU > (loadState(currentEmail)?.updatedAt||0)){
+          saveState(currentEmail,data);
+          setState(data);
+        }
+      }
+    });
+    return ()=>unsub && unsub();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[currentEmail, FB.ok]);
+
+  // Push local changes (debounced)
+  useEffect(()=>{
+    if(!FB.ok || !currentEmail) return;
+    const ref = cloudDocRef(currentEmail); if(!ref) return;
+    const t = setTimeout(()=>{ ref.set(state,{merge:true}).catch(()=>{}); }, 500);
+    return ()=>clearTimeout(t);
+  },[state, currentEmail]);
 
   if(resetToken){return <NewPasswordModal token={resetToken} onClose={()=>{setResetToken(""); location.hash=""}}/>}
   if(!currentEmail){return <><LoginView onLogin={login} onSignup={signup} initGoogle={initGoogle} resetStart={resetStart}/>{showReset&&<ResetModal email="" onClose={()=>setShowReset(false)}/>}</>}
@@ -902,15 +1000,15 @@ function App(){
       {page==="histories"&&(<Histories trades={state.trades} accType={state.accType} onEdit={t=>{setEditItem(t);setShowTrade(true)}} onDelete={delTrade} strategies={cfg.strategies} onClearAll={clearAllTrades}/>)}
       {page==="notes"&&(<NotesPanel trades={state.trades}/>)}
       {page==="settings"&&(<SettingsPanel
-        name={state.name} setName={v=>setState({...state,name:v})}
-        accType={state.accType} setAccType={v=>setState({...state,accType:v})}
-        capital={state.capital} setCapital={v=>setState({...state,capital:v||0})}
-        depositDate={state.depositDate} setDepositDate={v=>setState({...state,depositDate:v})}
-        email={state.email}
-        cfg={cfg} setCfg={(n)=>{setCfg(n); saveCfg(state.email,n)}}
+        name={state.name} setName={v=>setState({...state,name:v,updatedAt:Date.now()})}
+        accType={state.accType} setAccType={v=>setState({...state,accType:v,updatedAt:Date.now()})}
+        capital={state.capital} setCapital={v=>setState({...state,capital:v||0,updatedAt:Date.now()})}
+        depositDate={state.depositDate} setDepositDate={v=>setState({...state,depositDate:v,updatedAt:Date.now()})}
+        email={state.email || ADMIN_USER}
+        cfg={cfg} setCfg={(n)=>{setCfg(n); saveCfg(state.email||ADMIN_USER,n)}}
       />)}
       {showTrade&&(<TradeModal initial={editItem} onClose={()=>{setShowTrade(false);setEditItem(null)}} onSave={addOrUpdate} onDelete={delTrade} accType={state.accType} symbols={cfg.symbols} strategies={cfg.strategies}/>)}
-      {showAcct&&(<AccountSetupModal name={state.name} setName={v=>setState({...state,name:v})} accType={state.accType} setAccType={v=>setState({...state,accType:v})} capital={state.capital} setCapital={v=>setState({...state,capital:v||0})} depositDate={state.depositDate} setDepositDate={v=>setState({...state,depositDate:v})} onClose={()=>setShowAcct(false)} email={state.email}/>)}
+      {showAcct&&(<AccountSetupModal name={state.name} setName={v=>setState({...state,name:v,updatedAt:Date.now()})} accType={state.accType} setAccType={v=>setState({...state,accType:v,updatedAt:Date.now()})} capital={state.capital} setCapital={v=>setState({...state,capital:v||0,updatedAt:Date.now()})} depositDate={state.depositDate} setDepositDate={v=>setState({...state,depositDate:v,updatedAt:Date.now()})} onClose={()=>setShowAcct(false)} email={state.email||ADMIN_USER}/>)}
       {showCal&&(<CalendarModal onClose={()=>setShowCal(false)} trades={state.trades} view={calView} setView={setCalView} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} selectedDate={calSel} setSelectedDate={setCalSel} accType={state.accType}/>)}
       {showReset&&(<ResetModal email="" onClose={()=>setShowReset(false)}/>)}
     </AppShell>
