@@ -15,12 +15,12 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
   <!-- Your styles (cache-busted) -->
-  <link rel="stylesheet" href="./styles.css?v=5" />
+  <link rel="stylesheet" href="./styles.css?v=4" />
 </head>
 <body class="bg-slate-950 text-slate-100">
   <div id="root"></div>
 
-  <!-- Google Identity Services (kept; button disabled in code) -->
+  <!-- Google Identity Services (kept; we silently disable it in JS) -->
   <script>
     window.GOOGLE_CLIENT_ID =
       "579461879935-qaj9nta2pfbrn17ss5idu2k39p4joir4.apps.googleusercontent.com";
@@ -37,30 +37,13 @@
   <!-- XLS/CSV import (SheetJS) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- EmailJS (Forgot Password) -->
+  <!-- EmailJS (Forgot Password – unchanged) -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <!-- Firebase (Compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-
-  <!-- Configure Firebase here -->
-  <script>
-    /* 1) Paste your project config (Project settings ➜ SDK setup & config) */
-    window.NG_FIREBASE_CONFIG = {
-      apiKey: "AIzaSyCkLuIUtUP3EgMS2-LDqbJsYn7WBKV6-kA",
-      authDomain: "nitty-gritty-9dd61.firebaseapp.com",
-      projectId: "nitty-gritty-9dd61",
-      storageBucket: "nitty-gritty-9dd61.firebasestorage.app",
-      messagingSenderId: "418979704771",
-      appId: "1:418979704771:web:fe9bc3427f586778ced776"
-    };
-
-    /* 2) Set the single Firebase Auth email you create for yourself
-          (used only for secure Firestore access, not shown to users) */
-    window.NG_FIREBASE_EMAIL = "ammu8080@local.example";
-  </script>
+  <!-- Firebase (Compat CDN for non-module usage) -->
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore-compat.js"></script>
 
   <!-- Babel (in-browser) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
