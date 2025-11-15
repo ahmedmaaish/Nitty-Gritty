@@ -421,7 +421,18 @@ function BestStrategy({trades,accType,strategies}){
   )
 }
 function DetailedStats({trades,accType}){
-  const rows=useMemo(()=>{const m={};for(const t of trades){const k=t.symbol||"N/A";const v=computeDollarPnL(t,accType);const s=m[k]||{count:0,pnl:0};s.count+=1;s.pnl+=(v&&isFinite(v))?v:0;m[k]=s}return Object.entries(m).map(([sym,v])=>({sym,count:v.count,pnl:v.pnl}))},[trades,accType]);
+  const rows=useMemo(()=>{
+    const m={}; const dateMap = {};
+    for(const t of trades){
+      const k=t.symbol||"N/A"; const v=computeDollarPnL(t,accType);
+      const s=m[k]||{count:0,pnl:0}; s.count+=1; s.pnl+=(v&&isFinite(v))?v:0; m[k]=s;
+      const currentMaxDate = dateMap[k] || '0000-00-00';
+      if (t.date > currentMaxDate) dateMap[k] = t.date;
+    }
+    const entries = Object.entries(m).map(([sym,v])=>({sym,count:v.count,pnl:v.pnl,maxDate:dateMap[sym]}));
+    entries.sort((a,b) => b.maxDate.localeCompare(a.maxDate));
+    return entries.slice(0,3);
+  },[trades,accType]);
   return(<div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
     <div className="text-sm font-semibold mb-2">Detailed Statistics</div>
     <div className="overflow-auto"><table className="min-w-full text-sm"><thead><tr><Th>Symbol</Th><Th>Trades</Th><Th>Total P&L</Th><Th>P&L (Units)</Th></tr></thead>
