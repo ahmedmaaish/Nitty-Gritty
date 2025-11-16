@@ -10,7 +10,11 @@ html,body,#root{height:100%}
 .scroll-smooth::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
 
 /* Gauge text anti-aliasing for Best Strategy */
-.svg-text { paint-order: stroke; stroke: rgba(2,6,23,.3); stroke-width: .6px }
+.svg-text {
+  paint-order: stroke;
+  stroke: rgba(2,6,23,.3);
+  stroke-width: .6px
+}
 
 /* Subtle row lines in histories */
 .tr-row{border-top:1px solid rgba(51,65,85,.6)}
