@@ -46,6 +46,7 @@ const saveCurrent=e=>{try{localStorage.setItem(CURR_KEY,e)}catch{}};
 
 /* Tick/pip → $ approximation (unchanged) */
 function perLotValueForMove(symbol,delta,accType){
+  accType = accType || "Dollar Account";
   const abs=Math.abs(delta);const isStd=accType==="Dollar Account";const mult=std=>isStd?std:std/100;
   switch(symbol){
     case"US30":case"US100":return abs*mult(10);
@@ -63,6 +64,7 @@ function legPnL(symbol,side,entry,exit,lot,accType){
   return raw*s;
 }
 function computeDollarPnL(t,accType){
+  accType = accType || "Dollar Account";
   if (typeof t.pnlOverride === "number" && isFinite(t.pnlOverride)) return t.pnlOverride;
   if(t.exitType === "Trade In Progress") return null;
   if(typeof t.exit==="number"&&(!t.exitType||t.exitType==="TP")) return legPnL(t.symbol,t.side,t.entry,t.exit,t.lotSize,accType);
@@ -76,8 +78,14 @@ function computeDollarPnL(t,accType){
     default:return null;
   }
 }
-const formatPnlDisplay=(accType,v)=>accType==="Cent Account"?(r2(v*100)).toFixed(2)+" ¢":fmt$(v);
-const formatUnits=(accType,v)=>accType==="Dollar Account"?r2(v).toFixed(2):r2(v*100).toFixed(2);
+const formatPnlDisplay=(accType,v)=>{
+  accType = accType || "Dollar Account";
+  return accType==="Cent Account"?(r2(v*100)).toFixed(2)+" ¢":fmt$(v);
+};
+const formatUnits=(accType,v)=>{
+  accType = accType || "Dollar Account";
+  return accType==="Dollar Account"?r2(v).toFixed(2):r2(v*100).toFixed(2);
+};
 
 /* CSV export (unchanged) */
 function toCSV(rows,accType){
@@ -888,6 +896,11 @@ function App(){
       if (snap.exists) {
         const data = snap.data();
         let loadedState = data.state || fresh();
+        loadedState.name = loadedState.name || "";
+        loadedState.accType = loadedState.accType || ACC_TYPES[1];
+        loadedState.capital = loadedState.capital || 0;
+        loadedState.depositDate = loadedState.depositDate || todayISO();
+        loadedState.trades = loadedState.trades || [];
         loadedState.trades = loadedState.trades.map(t => ({
           ...t,
           entry: t.entry ?? null,
@@ -1054,7 +1067,7 @@ function App(){
 
   if(!currentEmail){return <><LoginView onLogin={login} onSignup={()=>{}} resetStart={resetStart}/>{showReset&&<ResetModal email="" onClose={()=>setShowReset(false)}/>}</>}
 
-  if (!state || !cfg) {
+  if (!state || !cfg || !state.accType) {
     return <div className="flex items-center justify-center h-screen bg-slate-950 text-slate-100">Loading...</div>;
   }
 
