@@ -1067,13 +1067,59 @@ function App(){
 
   if(!currentEmail){return <><LoginView onLogin={login} onSignup={()=>{}} resetStart={resetStart}/>{showReset&&<ResetModal email="" onClose={()=>setShowReset(false)}/>}</>}
 
-  if (!state || !cfg || !state.accType) {
+  const filteredTrades = useMemo(() => {
+    if (!state) return [];
+    return getFilteredTrades(state.trades, timeframe, state.depositDate || todayISO());
+  }, [state, timeframe]);
+
+  const bestSymbol = useMemo(() => {
+    if (!state) return null;
+    const symPnls = filteredTrades.reduce((m,t) => {
+      const sym = t.symbol || "N/A";
+      const pnl = computeDollarPnL(t, state.accType) || 0;
+      m[sym] = (m[sym] || 0) + pnl;
+      return m;
+    }, {});
+    const best = Object.entries(symPnls).sort((a,b) => b[1] - a[1])[0];
+    return best ? best[0] : null;
+  }, [filteredTrades, state]);
+
+  const bestStrategy = useMemo(() => {
+    if (!state) return null;
+    const stratData = filteredTrades.reduce((m,t) => {
+      const strat = t.strategy || "N/A";
+      const pnl = computeDollarPnL(t, state.accType);
+      if(pnl !== null && isFinite(pnl)){
+        if(!m[strat]) m[strat] = {pnl:0, wins:0, count:0};
+        m[strat].pnl += pnl;
+        m[strat].count += 1;
+        if(pnl > 0) m[strat].wins += 1;
+      }
+      return m;
+    }, {});
+    const sorted = Object.entries(stratData).sort((a,b) => (b[1].wins / b[1].count || 0) - (a[1].wins / a[1].count || 0));
+    return sorted[0] ? sorted[0][0] : null;
+  }, [filteredTrades, state]);
+
+  const worstTradeThisMonth = useMemo(() => {
+    if (!state) return null;
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyClosed = state.trades.filter(t => new Date(t.date) >= cutoff && t.exitType && t.exitType !== "Trade In Progress");
+    if(monthlyClosed.length === 0) return null;
+    return monthlyClosed.reduce((worst, t) => {
+      const pnl = computeDollarPnL(t, state.accType) || 0;
+      return pnl < (computeDollarPnL(worst, state.accType) || 0) ? t : worst;
+    }, monthlyClosed[0]);
+  }, [state]);
+
+  if (!state || !cfg) {
     return <div className="flex items-center justify-center h-screen bg-slate-950 text-slate-100">Loading...</div>;
   }
 
-  const openTrades = state.trades?.filter(t => !t.exitType || t.exitType === "Trade In Progress")?.length ?? 0;
-  const realized = state.trades?.filter(t => new Date(t.date) >= new Date(state.depositDate) && t.exitType && t.exitType !== "Trade In Progress")?.map(t => computeDollarPnL(t, state.accType))?.filter(v => v !== null && isFinite(v))?.reduce((a, b) => a + b, 0) ?? 0;
-  const effectiveCapital = (state.capital ?? 0) + realized;
+  const openTrades = state.trades.filter(t => !t.exitType || t.exitType === "Trade In Progress").length;
+  const realized = state.trades.filter(t => new Date(t.date) >= new Date(state.depositDate) && t.exitType && t.exitType !== "Trade In Progress").map(t => computeDollarPnL(t, state.accType)).filter(v => v !== null && isFinite(v)).reduce((a, b) => a + b, 0) || 0;
+  const effectiveCapital = (state.capital || 0) + realized;
 
   const navBtn=(label,pageKey,Icon)=>(<button onClick={()=>setPage(pageKey)} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border ${page===pageKey?'bg-slate-700 border-slate-600':'border-slate-700 hover:bg-slate-800'}`}>{Icon?<Icon/>:null}<span>{label}</span></button>);
   const capitalPanel=(<div>
@@ -1091,42 +1137,6 @@ function App(){
     {navBtn("Settings","settings",IconSettings)}
   </>);
 
-  const filteredTrades = useMemo(() => getFilteredTrades(state.trades, timeframe, state.depositDate), [state.trades, timeframe, state.depositDate]);
-  const bestSymbol = useMemo(() => {
-    const symPnls = filteredTrades.reduce((m,t) => {
-      const sym = t.symbol || "N/A";
-      const pnl = computeDollarPnL(t, state.accType) || 0;
-      m[sym] = (m[sym] || 0) + pnl;
-      return m;
-    }, {});
-    const best = Object.entries(symPnls).sort((a,b) => b[1] - a[1])[0];
-    return best ? best[0] : null;
-  }, [filteredTrades, state.accType]);
-  const bestStrategy = useMemo(() => {
-    const stratData = filteredTrades.reduce((m,t) => {
-      const strat = t.strategy || "N/A";
-      const pnl = computeDollarPnL(t, state.accType);
-      if(pnl !== null && isFinite(pnl)){
-        if(!m[strat]) m[strat] = {pnl:0, wins:0, count:0};
-        m[strat].pnl += pnl;
-        m[strat].count += 1;
-        if(pnl > 0) m[strat].wins += 1;
-      }
-      return m;
-    }, {});
-    const sorted = Object.entries(stratData).sort((a,b) => (b[1].wins / b[1].count || 0) - (a[1].wins / a[1].count || 0));
-    return sorted[0] ? sorted[0][0] : null;
-  }, [filteredTrades, state.accType]);
-  const worstTradeThisMonth = useMemo(() => {
-    const now = new Date();
-    const cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyClosed = state.trades.filter(t => new Date(t.date) >= cutoff && t.exitType && t.exitType !== "Trade In Progress");
-    if(monthlyClosed.length === 0) return null;
-    return monthlyClosed.reduce((worst, t) => {
-      const pnl = computeDollarPnL(t, state.accType) || 0;
-      return pnl < (computeDollarPnL(worst, state.accType) || 0) ? t : worst;
-    }, monthlyClosed[0]);
-  }, [state.trades, state.accType]);
   const onWriteNote = () => {
     setPage("notes");
   };
