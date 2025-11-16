@@ -83,7 +83,7 @@ const formatUnits=(accType,v)=>accType==="Dollar Account"?r2(v).toFixed(2):r2(v*
 function toCSV(rows,accType){
   const H=["Date","Symbol","Side","Lot Size","Entry","Exit","TP1","TP2","SL","Strategy","Exit Type","P&L","P&L (Units)"];
   const NL="\n"; const BOM="﻿";
-  const esc=s=>{if(s===null||s===undefined)return"";const v=String(s);return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
+  const esc=s=>{if(s===null||s===undefined)return"";const v=String(s);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const out=[H.join(",")];
   for(const t of rows){
     const v=computeDollarPnL(t,accType); const units=v===null?"":formatUnits(accType,v);
@@ -566,7 +566,7 @@ function DetailedStats({filteredTrades, accType}){
         </tr>))}</tbody></table></div>
   </div>)
 }
-function PerformanceBadge({trades, filteredTrades, timeframe}){
+function PerformanceBadge({trades, filteredTrades, timeframe, accType}){
   const totalTrades = trades.filter(t => t.exitType && t.exitType !== "Trade In Progress").length;
   const realizedPnls = filteredTrades.map(t => computeDollarPnL(t, accType)).filter(v => v !== null && isFinite(v));
   const wr = realizedPnls.length > 0 ? Math.round((realizedPnls.filter(v=>v>0).length / realizedPnls.length) * 100) : 0;
@@ -1135,7 +1135,7 @@ function App(){
       {page==="dashboard"&&(<div className="space-y-4">
         <div className="flex justify-between items-center">
           <div className="text-sm font-semibold">General statistics</div>
-          <PerformanceBadge trades={state.trades} filteredTrades={filteredTrades} timeframe={timeframe} />
+          <PerformanceBadge trades={state.trades} filteredTrades={filteredTrades} timeframe={timeframe} accType={state.accType} />
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {["since_deposit", "last_30_days", "last_7_days", "last_20_trades"].map(tf => (
