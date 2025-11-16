@@ -423,7 +423,20 @@ function EquitySparkline({cumul}){
     return `${x},${y}`;
   }).join(' ');
   const color = cumul[cumul.length-1] > 0 ? '#22c55e' : '#ef4444';
-  return <svg width={w} height={h} className="mt-1"><polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" /></svg>;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-1 w-full h-[40px]">
+      <defs>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" filter="url(#glow)" />
+    </svg>
+  );
 }
 function GeneralStats({trades, filteredTrades, accType, capital, depositDate, timeframe}){
   const realizedPnls = filteredTrades.map(t => computeDollarPnL(t, accType)).filter(v => v !== null && isFinite(v));
@@ -568,7 +581,7 @@ function DetailedStats({filteredTrades, accType}){
     <div className="overflow-auto"><table className="min-w-full text-sm"><thead><tr><Th>Symbol</Th><Th>Trades</Th><Th>Total P&L</Th><Th>P&L (Units)</Th></tr></thead>
       <tbody>{rows.map(r=>(
         <tr key={r.sym} className="border-t border-slate-700">
-          <Td>{r.sym} · {pill(r.pnl)}</Td><Td>{r.count}</Td>
+          <Td>{r.sym}</Td><Td>{r.count}</Td>
           <Td className={r.pnl>0?'text-green-400':r.pnl<0?'text-red-400':'text-amber-400'}>{formatPnlDisplay(accType,r.pnl)}</Td>
           <Td className={r.pnl>0?'text-green-400':r.pnl<0?'text-red-400':'text-amber-400'}>{formatUnits(accType,r.pnl)}</Td>
         </tr>))}</tbody></table></div>
