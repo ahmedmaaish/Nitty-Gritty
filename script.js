@@ -1192,7 +1192,6 @@ function App(){
             {dashTab === "strategies" && <BestStrategy filteredTrades={filteredTrades} accType={state.accType} strategies={cfg.strategies} />}
           </div>
         </div>
-        <QuickActions onAddTrade={onAddTrade} onWriteNote={onWriteNote} onReviewWorst={onReviewWorst} worstTrade={worstTradeThisMonth} />
       </div>)}
       {page==="histories"&&(<Histories trades={state.trades} accType={state.accType} onEdit={t=>{setEditItem(t);setShowTrade(true)}} onDelete={delTrade} strategies={cfg.strategies} onClearAll={clearAllTrades}/>)}
       {page==="notes"&&(<NotesPanel trades={state.trades} notes={notes} setNotes={setNotes}/>)}
